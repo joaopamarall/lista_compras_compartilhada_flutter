@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/item.dart';
 
 class ShoppingList {
   String id;
@@ -39,44 +40,5 @@ class ShoppingList {
       'items': items.map((item) => item.toMap()).toList(),
       'sharedWith': sharedWith,
     };
-  }
-}
-
-class Item {
-  String? id;
-  String name;
-  int quantity;
-  bool isBought;
-
-  Item({
-    this.id,
-    required this.name,
-    required this.quantity,
-    this.isBought = false,
-  });
-
-  // Método para criar um item a partir de um mapa
-  factory Item.fromMap(Map<String, dynamic> map) {
-    return Item(
-      id: map['id'],
-      name: map['name'] ?? '',
-      quantity: map['quantity'] ?? 1,
-      isBought: map['isBought'] ?? false,
-    );
-  }
-
-  // Método para converter o item em um mapa
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'quantity': quantity,
-      'isBought': isBought,
-    };
-  }
-
-  // Método para alternar o status de compra do item
-  void toggleBoughtStatus() {
-    isBought = !isBought;
   }
 }

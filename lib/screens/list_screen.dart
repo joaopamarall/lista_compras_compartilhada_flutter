@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/shopping_list.dart';
+import '../models/item.dart';
 import '../providers/list_provider.dart';
 
 class ListScreen extends StatelessWidget {
@@ -15,9 +16,10 @@ class ListScreen extends StatelessWidget {
         title: Text(shoppingList.name),
         actions: [
           IconButton(
-            icon: Icon(Icons.share),
+            icon: const Icon(Icons.share),
             onPressed: () {
               // Lógica para compartilhar a lista
+              _showShareDialog(context);
             },
           ),
         ],
@@ -40,9 +42,8 @@ class ListScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
         onPressed: () {
-          // Abrir tela de adicionar item
           _showAddItemDialog(context);
         },
       ),
@@ -57,38 +58,64 @@ class ListScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Adicionar Item'),
+          title: const Text('Adicionar Item'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: itemNameController,
-                decoration: InputDecoration(labelText: 'Nome do Item'),
+                decoration: const InputDecoration(labelText: 'Nome do Item'),
               ),
               TextField(
                 controller: itemQuantityController,
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: 'Quantidade'),
+                decoration: const InputDecoration(labelText: 'Quantidade'),
               ),
             ],
           ),
           actions: [
             TextButton(
-              child: Text('Cancelar'),
+              child: const Text('Cancelar'),
               onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
-              child: Text('Adicionar'),
+              child: const Text('Adicionar'),
               onPressed: () {
                 final itemName = itemNameController.text;
                 final itemQuantity =
                     int.tryParse(itemQuantityController.text) ?? 1;
+
                 if (itemName.isNotEmpty) {
+                  final newItem = Item(
+                    name: itemName,
+                    quantity: itemQuantity,
+                    isBought: false,
+                  );
+
                   Provider.of<ListProvider>(context, listen: false)
-                      .addItem(shoppingList, itemName, itemQuantity);
+                      .addItem(shoppingList, newItem, itemQuantity);
+
                   Navigator.of(context).pop();
                 }
               },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showShareDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Compartilhar Lista'),
+          content: const Text('Função de compartilhamento em desenvolvimento.'),
+          actions: [
+            TextButton(
+              child: const Text('Fechar'),
+              onPressed: () => Navigator.of(context).pop(),
             ),
           ],
         );

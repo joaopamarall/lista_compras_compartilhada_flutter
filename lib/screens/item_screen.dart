@@ -4,6 +4,7 @@ import '../models/item.dart';
 import '../models/shopping_list.dart';
 import '../providers/list_provider.dart';
 
+
 class ItemScreen extends StatelessWidget {
   final ShoppingList shoppingList;
 
@@ -85,9 +86,10 @@ class ItemScreen extends StatelessWidget {
 
                 if (itemName.isNotEmpty) {
                   final newItem = Item(
-                      id: DateTime.now().toString(),
-                      name: itemName,
-                      quantity: itemQuantity);
+                    id: DateTime.now().toString(),
+                    name: itemName,
+                    quantity: itemQuantity,
+                  );
 
                   Provider.of<ListProvider>(context, listen: false)
                       .addItem(shoppingList, newItem, itemQuantity);

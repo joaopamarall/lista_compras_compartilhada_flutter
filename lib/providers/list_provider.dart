@@ -5,19 +5,91 @@ import '../models/shopping_list.dart';
 class ListProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<ShoppingList> _lists = [];
+  ShoppingList? _recentlyDeletedList;
 
   List<ShoppingList> get lists => _lists;
 
-  // Método para buscar listas do Firestore
+// Método para buscar listas do Firestore
   Future<void> fetchLists() async {
     try {
       QuerySnapshot snapshot = await _firestore.collection('shopping_lists').get();
-      _lists = snapshot.docs.map((doc) => ShoppingList.fromFirestore(doc)).toList();
+      List<ShoppingList> fetchedLists = [];
+      for (var doc in snapshot.docs) {
+        ShoppingList list = ShoppingList.fromFirestore(doc);
+        fetchedLists.add(list);
+      }
+      _lists = fetchedLists;
       notifyListeners();
     } catch (e) {
       if (kDebugMode) {
         print('Erro ao buscar listas: $e');
       }
+    }
+  }
+
+  // Criar uma nova lista
+  Future<void> createList(String name) async {
+    try {
+      DocumentReference docRef = await _firestore.collection('shopping_lists').add({
+        'name': name,
+        'sharedWith': [],
+      });
+      ShoppingList newList = ShoppingList(
+        id: docRef.id,
+        name: name,
+        items: [],
+        sharedWith: [],
+      );
+      _lists.add(newList);
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao criar lista: $e');
+      }
+    }
+  }
+
+  // Atualizar uma lista existente
+  Future<void> updateList(String listId, String newName) async {
+    try {
+      await _firestore.collection('shopping_lists').doc(listId).update({
+        'name': newName,
+      });
+      int index = _lists.indexWhere((list) => list.id == listId);
+      if (index != -1) {
+        _lists[index].name = newName;
+        notifyListeners();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao atualizar lista: $e');
+      }
+    }
+  }
+
+  // Excluir uma lista e armazená-la para possível restauração
+  Future<void> deleteList(String listId) async {
+    try {
+      int index = _lists.indexWhere((list) => list.id == listId);
+      if (index != -1) {
+        _recentlyDeletedList = _lists[index]; // Armazena a lista excluída
+        await _firestore.collection('shopping_lists').doc(listId).delete();
+        _lists.removeAt(index);
+        notifyListeners();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao excluir lista: $e');
+      }
+    }
+  }
+
+  // Restaurar a última lista excluída
+  void undoDeleteList() {
+    if (_recentlyDeletedList != null) {
+      _lists.add(_recentlyDeletedList!);
+      _recentlyDeletedList = null;
+      notifyListeners();
     }
   }
 
@@ -51,19 +123,6 @@ class ListProvider extends ChangeNotifier {
     } catch (e) {
       if (kDebugMode) {
         print('Erro ao editar lista: $e');
-      }
-    }
-  }
-
-  // Método para excluir uma lista
-  Future<void> deleteList(String listId) async {
-    try {
-      await _firestore.collection('shopping_lists').doc(listId).delete();
-      _lists.removeWhere((list) => list.id == listId);
-      notifyListeners();
-    } catch (e) {
-      if (kDebugMode) {
-        print('Erro ao deletar lista: $e');
       }
     }
   }

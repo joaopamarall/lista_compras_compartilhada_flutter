@@ -24,10 +24,21 @@ class Item {
   // Método para converter o item em um mapa para o Firestore
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'name': name,
       'quantity': quantity,
       'isBought': isBought,
     };
+  }
+
+  // Método para criar um item a partir de um mapa
+  factory Item.fromMap(Map<String, dynamic> map) {
+    return Item(
+      id: map['id'],
+      name: map['name'] ?? '',
+      quantity: map['quantity'] ?? 1,
+      isBought: map['isBought'] ?? false,
+    );
   }
 
   // Método para alternar o status de compra do item
