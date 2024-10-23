@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/shopping_list.dart';
-import '../models/item.dart';
+import '../models/item.dart'; // Importar o modelo Item
 import '../providers/list_provider.dart';
 
 class ListScreen extends StatelessWidget {
