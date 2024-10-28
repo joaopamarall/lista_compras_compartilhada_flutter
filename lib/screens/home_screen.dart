@@ -3,9 +3,23 @@ import 'package:projeto_flutter/models/shopping_list.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/list_provider.dart';
+import 'list_screen.dart'; // Importar a tela de itens da lista
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late Future<void> _fetchListsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchListsFuture = Provider.of<ListProvider>(context, listen: false).fetchLists();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,23 +36,92 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: FutureBuilder(
-        future: listProvider.fetchLists(),
+        future: _fetchListsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return const Center(child: Text('Erro ao carregar as listas.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Erro ao carregar as listas.'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _fetchListsFuture = Provider.of<ListProvider>(context, listen: false).fetchLists();
+                      });
+                    },
+                    child: const Text('Tentar Novamente'),
+                  ),
+                ],
+              ),
+            );
           }
           if (listProvider.lists.isEmpty) {
             return const Center(child: Text('Nenhuma lista encontrada.'));
           }
-          // Lista encontrada
+
           return ListView.builder(
             itemCount: listProvider.lists.length,
             itemBuilder: (ctx, index) {
               final list = listProvider.lists[index];
-              return ListTile(title: Text(list.name));
+              return Dismissible(
+                key: Key(list.id),
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (direction) async {
+                  return await _showDeleteConfirmation(context);
+                },
+                onDismissed: (direction) {
+                  listProvider.deleteList(list.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Lista ${list.name} removida')),
+                  );
+                },
+                child: ListTile(
+                  title: Text(list.name),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _showEditListDialog(context, list);
+                      } else if (value == 'delete') {
+                        _showDeleteConfirmation(context).then((confirmed) {
+                          if (confirmed) {
+                            listProvider.deleteList(list.id);
+                          }
+                        });
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Editar'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Excluir'),
+                      ),
+                    ],
+                  ),
+                  onTap: () {
+                    // Navegar para a tela de itens da lista
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ListScreen(shoppingList: list),
+                      ),
+                    );
+                  },
+                ),
+              );
             },
           );
         },
@@ -72,7 +155,6 @@ class HomeScreen extends StatelessWidget {
               }
               return null;
             },
-            autofocus: true,
           ),
         ),
         actions: [
@@ -151,9 +233,7 @@ class HomeScreen extends StatelessWidget {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Excluir'),
           ),
@@ -184,14 +264,5 @@ class HomeScreen extends StatelessWidget {
     if (confirm == true) {
       await FirebaseAuth.instance.signOut();
     }
-  }
-
-  void _shareList(BuildContext context, ShoppingList list) {
-    // Implementar compartilhamento
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Função de compartilhamento em desenvolvimento'),
-      ),
-    );
   }
 }

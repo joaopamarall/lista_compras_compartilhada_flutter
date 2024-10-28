@@ -7,7 +7,7 @@ import '../providers/list_provider.dart';
 class ListScreen extends StatelessWidget {
   final ShoppingList shoppingList;
 
-  const ListScreen(this.shoppingList, {super.key});
+  const ListScreen({super.key, required this.shoppingList});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +18,6 @@ class ListScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.share),
             onPressed: () {
-              // Lógica para compartilhar a lista
               _showShareDialog(context);
             },
           ),
@@ -28,15 +27,46 @@ class ListScreen extends StatelessWidget {
         itemCount: shoppingList.items.length,
         itemBuilder: (context, index) {
           final item = shoppingList.items[index];
-          return ListTile(
-            title: Text(item.name),
-            subtitle: Text('Quantidade: ${item.quantity}'),
-            trailing: Checkbox(
-              value: item.isBought,
-              onChanged: (value) {
-                Provider.of<ListProvider>(context, listen: false)
-                    .toggleItemStatus(shoppingList, index);
-              },
+          return Dismissible(
+            key: Key(item.id ?? index.toString()),
+            background: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (direction) async {
+              return await _showDeleteItemConfirmation(context);
+            },
+            onDismissed: (direction) {
+              Provider.of<ListProvider>(context, listen: false)
+                  .deleteItem(shoppingList, index);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Item ${item.name} removido')),
+              );
+            },
+            child: ListTile(
+              title: Text(item.name),
+              subtitle: Text('Quantidade: ${item.quantity}'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Checkbox(
+                    value: item.isBought,
+                    onChanged: (value) {
+                      Provider.of<ListProvider>(context, listen: false)
+                          .toggleItemStatus(shoppingList, index);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () {
+                      _showEditItemDialog(context, item, index);
+                    },
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -103,6 +133,83 @@ class ListScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  void _showEditItemDialog(BuildContext context, Item item, int index) {
+    final itemNameController = TextEditingController(text: item.name);
+    final itemQuantityController = TextEditingController(
+      text: item.quantity.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Editar Item'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: itemNameController,
+                decoration: const InputDecoration(labelText: 'Nome do Item'),
+              ),
+              TextField(
+                controller: itemQuantityController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Quantidade'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Salvar'),
+              onPressed: () {
+                final updatedName = itemNameController.text;
+                final updatedQuantity =
+                    int.tryParse(itemQuantityController.text) ?? 1;
+
+                if (updatedName.isNotEmpty) {
+                  final updatedItem = item.copyWith(
+                    name: updatedName,
+                    quantity: updatedQuantity,
+                  );
+
+                  Provider.of<ListProvider>(context, listen: false)
+                      .editItem(shoppingList, index, updatedItem);
+
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _showDeleteItemConfirmation(BuildContext context) async {
+    return await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: const Text('Tem certeza que deseja excluir este item?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    ) ?? false;
   }
 
   void _showShareDialog(BuildContext context) {
