@@ -26,11 +26,11 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Shopping List',
         theme: ThemeData(
-          brightness: Brightness.light,
-          primaryColor: Colors.green[700],
-          scaffoldBackgroundColor: Colors.white,
+          brightness: Brightness.dark, // Definir o tema como escuro
+          primaryColor: const Color(0xFFA146DD), // Cor primária para os botões
+          scaffoldBackgroundColor: Colors.black, // Cor de fundo do Scaffold
           appBarTheme: const AppBarTheme(
-            color: Colors.green,
+            color: Color(0xFFA146DD), // Cor da AppBar
             titleTextStyle: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -38,20 +38,20 @@ class MyApp extends StatelessWidget {
             ),
           ),
           floatingActionButtonTheme: const FloatingActionButtonThemeData(
-            backgroundColor: Colors.orange,
+            backgroundColor: Color(0xFFA146DD), // Cor do botão flutuante
             foregroundColor: Colors.white,
           ),
           textTheme: const TextTheme(
-            bodyMedium: TextStyle(color: Colors.black87),
+            bodyMedium: TextStyle(color: Colors.white), // Texto em branco
             titleLarge: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.green,
+              color: Colors.white, // Cor do título
             ),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
+              backgroundColor: const Color(0xFFA146DD), // Cor dos botões
               textStyle: const TextStyle(fontSize: 18),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -59,9 +59,9 @@ class MyApp extends StatelessWidget {
           inputDecorationTheme: const InputDecorationTheme(
             border: OutlineInputBorder(),
             focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.green),
+              borderSide: BorderSide(color: Color(0xFFA146DD)), // Cor da borda quando focado
             ),
-            labelStyle: TextStyle(color: Colors.green),
+            labelStyle: TextStyle(color: Color(0xFFA146DD)), // Cor do rótulo
           ),
         ),
         home: const AuthWrapper(),
@@ -69,6 +69,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
