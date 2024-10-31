@@ -1,55 +1,77 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/item.dart';
 import '../models/shopping_list.dart';
-import '../providers/list_provider.dart';
-
 
 class ItemScreen extends StatelessWidget {
   final ShoppingList shoppingList;
 
-  const ItemScreen(this.shoppingList, {super.key});
+  const ItemScreen({super.key, required this.shoppingList});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Itens da Lista: ${shoppingList.name}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _showAddItemDialog(context, shoppingList),
+          ),
+        ],
       ),
-      body: ListView.builder(
-        itemCount: shoppingList.items.length,
-        itemBuilder: (context, index) {
-          final item = shoppingList.items[index];
-          return ListTile(
-            title: Text(item.name),
-            subtitle: Text('Quantidade: ${item.quantity}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Checkbox(
-                  value: item.isBought,
-                  onChanged: (value) {
-                    Provider.of<ListProvider>(context, listen: false)
-                        .toggleItemStatus(shoppingList, index);
-                  },
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('shopping_lists')
+            .doc(shoppingList.id)
+            .collection('items')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: const Text('Erro ao carregar itens.'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('Nenhum item na lista.'));
+          }
+
+          // Mapeia os documentos do Firestore para objetos `Item`
+          final items = snapshot.data!.docs.map((doc) {
+            return Item.fromFirestore(doc.data() as Map<String, dynamic>, doc.id);
+          }).toList();
+
+          return ListView.builder(
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return ListTile(
+                title: Text(item.name),
+                subtitle: Text('Quantidade: ${item.quantity}'),
+                trailing: Icon(
+                  item.isBought
+                      ? Icons.check_box
+                      : Icons.check_box_outline_blank,
                 ),
-                IconButton(
-                  icon: Icon(Icons.edit),
-                  onPressed: () => _showEditItemDialog(context, item, index),
-                ),
-              ],
-            ),
+                onTap: () {
+                  FirebaseFirestore.instance
+                      .collection('shopping_lists')
+                      .doc(shoppingList.id)
+                      .collection('items')
+                      .doc(item.id)
+                      .update({'isBought': !item.isBought});
+                },
+                onLongPress: () => _showEditItemDialog(context, shoppingList, item),
+              );
+            },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
-        onPressed: () => _showAddItemDialog(context),
       ),
     );
   }
 
-  void _showAddItemDialog(BuildContext context) {
+  void _showAddItemDialog(BuildContext context, ShoppingList shoppingList) {
     final itemNameController = TextEditingController();
     final itemQuantityController = TextEditingController();
 
@@ -57,42 +79,43 @@ class ItemScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Adicionar Item'),
+          title: const Text('Adicionar Item'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: itemNameController,
-                decoration: InputDecoration(labelText: 'Nome do Item'),
+                decoration: const InputDecoration(labelText: 'Nome do Item'),
               ),
               TextField(
                 controller: itemQuantityController,
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: 'Quantidade'),
+                decoration: const InputDecoration(labelText: 'Quantidade'),
               ),
             ],
           ),
           actions: [
             TextButton(
-              child: Text('Cancelar'),
+              child: const Text('Cancelar'),
               onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
-              child: Text('Adicionar'),
+              child: const Text('Adicionar'),
               onPressed: () {
                 final itemName = itemNameController.text;
-                final itemQuantity =
-                    int.tryParse(itemQuantityController.text) ?? 1;
+                final itemQuantity = int.tryParse(itemQuantityController.text) ?? 1;
 
                 if (itemName.isNotEmpty) {
                   final newItem = Item(
-                    id: DateTime.now().toString(),
                     name: itemName,
                     quantity: itemQuantity,
                   );
 
-                  Provider.of<ListProvider>(context, listen: false)
-                      .addItem(shoppingList, newItem, itemQuantity);
+                  FirebaseFirestore.instance
+                      .collection('shopping_lists')
+                      .doc(shoppingList.id)
+                      .collection('items')
+                      .add(newItem.toMap());
 
                   Navigator.of(context).pop();
                 }
@@ -104,7 +127,7 @@ class ItemScreen extends StatelessWidget {
     );
   }
 
-  void _showEditItemDialog(BuildContext context, item, int index) {
+  void _showEditItemDialog(BuildContext context, ShoppingList shoppingList, Item item) {
     final itemNameController = TextEditingController(text: item.name);
     final itemQuantityController = TextEditingController(
       text: item.quantity.toString(),
@@ -114,43 +137,42 @@ class ItemScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Editar Item'),
+          title: const Text('Editar Item'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: itemNameController,
-                decoration: InputDecoration(labelText: 'Nome do Item'),
+                decoration: const InputDecoration(labelText: 'Nome do Item'),
               ),
               TextField(
                 controller: itemQuantityController,
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: 'Quantidade'),
+                decoration: const InputDecoration(labelText: 'Quantidade'),
               ),
             ],
           ),
           actions: [
             TextButton(
-              child: Text('Cancelar'),
+              child: const Text('Cancelar'),
               onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
-              child: Text('Salvar'),
+              child: const Text('Salvar'),
               onPressed: () {
                 final updatedName = itemNameController.text;
-                final updatedQuantity =
-                    int.tryParse(itemQuantityController.text) ?? 1;
+                final updatedQuantity = int.tryParse(itemQuantityController.text) ?? 1;
 
                 if (updatedName.isNotEmpty) {
-                  final updatedItem = Item(
-                    id: item.id,
-                    name: updatedName,
-                    quantity: updatedQuantity,
-                    isBought: item.isBought,
-                  );
-
-                  Provider.of<ListProvider>(context, listen: false)
-                      .editItem(shoppingList, index, updatedItem);
+                  FirebaseFirestore.instance
+                      .collection('shopping_lists')
+                      .doc(shoppingList.id)
+                      .collection('items')
+                      .doc(item.id)
+                      .update({
+                    'name': updatedName,
+                    'quantity': updatedQuantity,
+                  });
 
                   Navigator.of(context).pop();
                 }

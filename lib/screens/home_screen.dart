@@ -1,126 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:projeto_flutter/models/shopping_list.dart';
-import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/shopping_list.dart';
 import '../providers/list_provider.dart';
-import 'list_screen.dart'; // Importar a tela de itens da lista
+import 'list_screen.dart';
+import 'package:provider/provider.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  late Future<void> _fetchListsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchListsFuture = Provider.of<ListProvider>(context, listen: false).fetchLists();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final listProvider = Provider.of<ListProvider>(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Minhas Listas de Compras'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => _showLogoutDialog(context),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+            },
           ),
         ],
       ),
-      body: FutureBuilder(
-        future: _fetchListsFuture,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('shopping_lists').snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Erro ao carregar as listas.'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _fetchListsFuture = Provider.of<ListProvider>(context, listen: false).fetchLists();
-                      });
-                    },
-                    child: const Text('Tentar Novamente'),
-                  ),
-                ],
-              ),
-            );
+            return const Center(child: Text('Erro ao carregar as listas.'));
           }
-          if (listProvider.lists.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text('Nenhuma lista encontrada.'));
           }
 
+          final lists = snapshot.data!.docs.map((doc) {
+            return ShoppingList.fromFirestore(doc);
+          }).toList();
+
           return ListView.builder(
-            itemCount: listProvider.lists.length,
+            itemCount: lists.length,
             itemBuilder: (ctx, index) {
-              final list = listProvider.lists[index];
-              return Dismissible(
-                key: Key(list.id),
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
+              final list = lists[index];
+              return ListTile(
+                title: Text(list.name),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _showEditListDialog(context, list);
+                    } else if (value == 'delete') {
+                      _showDeleteConfirmation(context, list.id);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Editar'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Excluir'),
+                    ),
+                  ],
                 ),
-                direction: DismissDirection.endToStart,
-                confirmDismiss: (direction) async {
-                  return await _showDeleteConfirmation(context);
-                },
-                onDismissed: (direction) {
-                  listProvider.deleteList(list.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lista ${list.name} removida')),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ListScreen(shoppingList: list),
+                    ),
                   );
                 },
-                child: ListTile(
-                  title: Text(list.name),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _showEditListDialog(context, list);
-                      } else if (value == 'delete') {
-                        _showDeleteConfirmation(context).then((confirmed) {
-                          if (confirmed) {
-                            listProvider.deleteList(list.id);
-                          }
-                        });
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Text('Editar'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Excluir'),
-                      ),
-                    ],
-                  ),
-                  onTap: () {
-                    // Navegar para a tela de itens da lista
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ListScreen(shoppingList: list),
-                      ),
-                    );
-                  },
-                ),
               );
             },
           );
@@ -137,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final nameController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    return showDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Nova Lista'),
@@ -181,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final nameController = TextEditingController(text: list.name);
     final formKey = GlobalKey<FormState>();
 
-    return showDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Editar Lista'),
@@ -209,8 +161,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ElevatedButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
-                Provider.of<ListProvider>(context, listen: false)
-                    .updateList(list.id, nameController.text);
+                FirebaseFirestore.instance
+                    .collection('shopping_lists')
+                    .doc(list.id)
+                    .update({'name': nameController.text});
                 Navigator.pop(context);
               }
             },
@@ -221,48 +175,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<bool> _showDeleteConfirmation(BuildContext context) async {
-    return await showDialog(
+  Future<void> _showDeleteConfirmation(BuildContext context, String listId) async {
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar Exclusão'),
+        title: const Text('Excluir Lista'),
         content: const Text('Tem certeza que deseja excluir esta lista?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
+            onPressed: () {
+              FirebaseFirestore.instance.collection('shopping_lists').doc(listId).delete();
+              Navigator.pop(context);
+            },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
             child: const Text('Excluir'),
           ),
         ],
       ),
-    ) ?? false;
-  }
-
-  Future<void> _showLogoutDialog(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar Logout'),
-        content: const Text('Tem certeza que deseja sair?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sair'),
-          ),
-        ],
-      ),
     );
-
-    if (confirm == true) {
-      await FirebaseAuth.instance.signOut();
-    }
   }
 }

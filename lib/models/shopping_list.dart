@@ -4,7 +4,7 @@ import '../models/item.dart';
 class ShoppingList {
   String id;
   String name;
-  List<Item> items; // Certifique-se de que 'items' seja uma lista de 'Item'
+  List<Item> items;
   List<String> sharedWith;
 
   ShoppingList({
@@ -18,26 +18,18 @@ class ShoppingList {
   factory ShoppingList.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-    // Converte os itens do Firestore para objetos 'Item'
-    List<Item> itemList = [];
-    if (data['items'] != null) {
-      List<dynamic> itemsData = data['items'];
-      itemList = itemsData.map((item) => Item.fromMap(item)).toList();
-    }
-
     return ShoppingList(
       id: doc.id,
       name: data['name'] ?? '',
-      items: itemList,
+      items: [], // Inicializamos vazio e carregamos separadamente os itens da subcoleção
       sharedWith: List<String>.from(data['sharedWith'] ?? []),
     );
   }
 
-  // Método para converter o objeto em um mapa para o Firestore
+  // Método para converter o objeto em um mapa para o Firestore, sem incluir `items`
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'items': items.map((item) => item.toMap()).toList(),
       'sharedWith': sharedWith,
     };
   }
