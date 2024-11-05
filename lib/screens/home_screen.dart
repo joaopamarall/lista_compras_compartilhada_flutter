@@ -46,22 +46,34 @@ class HomeScreen extends StatelessWidget {
               final list = lists[index];
               return ListTile(
                 title: Text(list.name),
-                trailing: PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _showEditListDialog(context, list);
-                    } else if (value == 'delete') {
-                      _showDeleteConfirmation(context, list.id);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Editar'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Botão de compartilhar
+                    IconButton(
+                      icon: const Icon(Icons.share),
+                      onPressed: () {
+                        _showShareDialog(context, list);
+                      },
                     ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Excluir'),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _showEditListDialog(context, list);
+                        } else if (value == 'delete') {
+                          _showDeleteConfirmation(context, list.id);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Editar'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Excluir'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -81,6 +93,52 @@ class HomeScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreateListDialog(context),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  // Diálogo para compartilhar lista
+  Future<void> _showShareDialog(BuildContext context, ShoppingList list) async {
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Compartilhar Lista'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: emailController,
+            decoration: const InputDecoration(
+              labelText: 'Email do usuário',
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor, insira um email';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                // Adicionar lógica para compartilhar lista com o usuário pelo email
+                Provider.of<ListProvider>(context, listen: false)
+                    .shareList(list.id, emailController.text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Compartilhar'),
+          ),
+        ],
       ),
     );
   }

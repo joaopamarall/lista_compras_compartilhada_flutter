@@ -6,12 +6,14 @@ class ShoppingList {
   String name;
   List<Item> items;
   List<String> sharedWith;
+  String createdBy; // Campo para armazenar o ID do usuário que criou a lista
 
   ShoppingList({
     required this.id,
     required this.name,
     required this.items,
     required this.sharedWith,
+    required this.createdBy, // Adiciona createdBy como parâmetro obrigatório
   });
 
   // Método para criar uma instância a partir de um documento do Firestore
@@ -23,6 +25,7 @@ class ShoppingList {
       name: data['name'] ?? '',
       items: [], // Inicializamos vazio e carregamos separadamente os itens da subcoleção
       sharedWith: List<String>.from(data['sharedWith'] ?? []),
+      createdBy: data['createdBy'] ?? '', // Recupera o campo createdBy do Firestore
     );
   }
 
@@ -31,6 +34,7 @@ class ShoppingList {
     return {
       'name': name,
       'sharedWith': sharedWith,
+      'createdBy': createdBy, // Adiciona createdBy ao map
     };
   }
 }
